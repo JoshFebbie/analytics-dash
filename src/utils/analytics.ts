@@ -1,7 +1,12 @@
 import { redis } from '@/lib/redis';
+import { getDate } from '@/utils/index';
 
 type AnalyticsArgs = {
     retention?: number;
+}
+
+type TrackOptions = {
+    persist?: boolean;
 }
 
 export class Analytics {
@@ -11,12 +16,18 @@ export class Analytics {
         if (opts?.retention) this.retention = opts.retention;
     }
 
-    async track(namespace: string, event: object = {}) {
+    async track(namespace: string, event: object = {}, opts?: TrackOptions) {
 
-        const key = `analytics::${namespace}`;
+        let key = `analytics::${namespace}`;
+
+        if (!opts?.persist) {
+            key += `::${getDate()}`;
+        }
 
         //DB call to store the event
         await redis.hincrby(key, JSON.stringify(event), 1);
+        if (opts?.persist) await redis.expire(key, this.retention);
+        
     }
 }
 
